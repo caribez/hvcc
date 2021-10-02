@@ -31,6 +31,7 @@ from hvcc.generators.c2js import c2js
 from hvcc.generators.c2daisy import c2daisy
 from hvcc.generators.c2dpf import c2dpf
 from hvcc.generators.c2pdext import c2pdext
+from hvcc.generators.c2rack import c2rack
 from hvcc.generators.c2wwise import c2wwise
 from hvcc.generators.c2unity import c2unity
 
@@ -324,6 +325,19 @@ def compile_dataflow(in_path, out_dir, patch_name=None, patch_meta_file=None,
             copyright=copyright,
             verbose=verbose)
 
+    if "rack" in generators:
+        if verbose:
+            print("--> Generating Rack plugin")
+        results["c2rack"] = c2rack.c2rack.compile(
+            c_src_dir=c_src_dir,
+            out_dir=os.path.join(out_dir, "plugin"),
+            patch_name=patch_name,
+            num_input_channels=num_input_channels,
+            num_output_channels=num_output_channels,
+            externs=externs,
+            copyright=copyright,
+            verbose=verbose)
+
     if "unity" in generators:
         if verbose:
             print("--> Generating Unity plugin")
@@ -384,7 +398,7 @@ def main():
         "--gen",
         nargs="+",
         default=["c"],
-        help="List of generator outputs: c, unity, wwise, js, pdext, daisy, dpf, fabric")
+        help="List of generator outputs: c, unity, wwise, js, pdext, daisy, dpf, fabric, rack")
     parser.add_argument(
         "--results_path",
         help="Write results dictionary to the given path as a JSON-formatted string."

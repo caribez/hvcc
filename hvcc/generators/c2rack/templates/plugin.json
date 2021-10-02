@@ -1,0 +1,16 @@
+{
+  "slug": "TestPlugin",
+  "name": "TestPlugin",
+  "version": "0.0.1",
+  "license": "ISC",
+  "brand": "TestPlugin",
+  "author": "",
+  "authorEmail": "",
+  "authorUrl": "",
+  "pluginUrl": "",
+  "manualUrl": "",
+  "sourceUrl": "",
+  "donateUrl": "",
+  "changelogUrl": "",
+  "modules": []
+}
