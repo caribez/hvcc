@@ -29,6 +29,12 @@ class c2dpf:
 
         tick = time.time()
 
+        def dpf_enum_value(minim, maxim, enumlen, i):
+            enumspread = abs(minim - maxim)
+            enumstep = enumspread / (enumlen - 1)
+            newstep = i * enumstep - abs(minim)
+            return newstep
+
         receiver_list = externs['parameters']['in']
 
         if patch_meta:
@@ -86,7 +92,8 @@ class c2dpf:
                     num_output_channels=num_output_channels,
                     receivers=receiver_list,
                     pool_sizes_kb=externs["memoryPoolSizesKb"],
-                    copyright=copyright_c))
+                    copyright=copyright_c,
+                    dpf_enum_value=dpf_enum_value))
             dpf_h_path = os.path.join(source_dir, "DistrhoPluginInfo.h")
             with open(dpf_h_path, "w") as f:
                 f.write(env.get_template("DistrhoPluginInfo.h").render(

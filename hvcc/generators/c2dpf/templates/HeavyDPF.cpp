@@ -109,10 +109,26 @@ void {{class_name}}::initParameter(uint32_t index, Parameter& parameter)
         | kParameterIsBoolean
       {% elif v.attributes.type == 'trig': %}
         | kParameterIsTrigger
+      {% elif v.attributes.type == 'int' or v.attributes.type.split(":")[0] == 'enum' : %}
+        | kParameterIsInteger
       {% endif %};
         parameter.ranges.min = {{v.attributes.min}}f;
         parameter.ranges.max = {{v.attributes.max}}f;
         parameter.ranges.def = {{v.attributes.default}}f;
+      {% if v.attributes.type.split(":")[0] == 'enum': %}
+        {% set enums = v.attributes.type.split(":")[1].split(".") %}
+        {% set enumlen = enums|length %}
+        if (ParameterEnumerationValue *values = new ParameterEnumerationValue[{{enumlen}}])
+        {
+          parameter.enumValues.values = values;
+          parameter.enumValues.count = {{enumlen}};
+          parameter.enumValues.restrictedMode = true;
+          {% for i in range(0, enumlen) %}
+          values[{{i}}].value = {{dpf_enum_value(v.attributes.min, v.attributes.max, enumlen, i)}}f;
+          values[{{i}}].label = "{{enums[i]}}";
+          {% endfor %}
+        }
+      {% endif %}
         break;
     {% endfor %}
   }
