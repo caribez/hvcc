@@ -20,7 +20,6 @@
 // platform definitions
 #if _WIN32 || _WIN64 || _MSC_VER
   #define HV_WIN 1
-#endif
 #elif __APPLE__
   #define HV_APPLE 1
 #elif __ANDROID__
