@@ -4,8 +4,14 @@ import os
 import shutil
 import time
 import jinja2
+import json
+
+import hvcc.core.hv2ir.HeavyLangObject as HeavyLangObject
 from ..buildjson import buildjson
 from ..copyright import copyright_manager
+
+
+heavy_hash = HeavyLangObject.HeavyLangObject.get_hash
 
 
 class c2rack:
@@ -22,14 +28,68 @@ class c2rack:
         return s
 
     @classmethod
-    def compile(clazz, c_src_dir, out_dir, externs,
-                patch_name=None, patch_meta: dict = None,
-                num_input_channels=0, num_output_channels=0,
-                copyright=None, verbose=False):
+    def nonraw_receivers(clazz, old_receiver_list):
+        # remove raw receivers
+        receiver_list = []
+        for k, v in old_receiver_list:
+            if 'raw' in v['attributes']:
+                # receiver_list.pop(k)
+                pass
+            else:
+                receiver_list.append((k, v))
+        return receiver_list
+
+    @classmethod
+    def make_jdata(clazz, patch_ir):
+        jdata = list()
+
+        with open(patch_ir, mode="r") as f:
+            ir = json.load(f)
+
+            for name, v in ir['control']['receivers'].items():
+                # skip __hv_init and similar
+                if name.startswith("__"):
+                    continue
+
+                # If a name has been specified
+                if v['attributes'].get('raw'):
+                    key = v['attributes']['raw']
+                    jdata.append((key, name, 'RECV', f"0x{heavy_hash(name)}",
+                                  v['attributes']['min'],
+                                  v['attributes']['max'],
+                                  v['attributes']['default']))
+
+                elif name.startswith('Channel-'):
+                    key = name.split('Channel-', 1)[1]
+                    jdata.append((key, name, 'RECV', f"0x{heavy_hash(name)}",
+                                  0, 1, None))
+
+            for k, v in ir['objects'].items():
+                try:
+                    if v['type'] == '__send':
+                        name = v['args']['name']
+                        if v['args']['attributes'].get('raw'):
+                            key = v['args']['attributes']['raw']
+                            jdata.append((key, f'{name}>', 'SEND', f"0x{heavy_hash(name)}",
+                                          v['args']['attributes']['min'],
+                                          v['args']['attributes']['max'],
+                                          v['args']['attributes']['default']))
+                        elif name.startswith('Channel-'):
+                            key = name.split('Channel-', 1)[1]
+                            jdata.append((key, f'{name}>', 'SEND', f"0x{heavy_hash(name)}",
+                                          0, 1, None))
+                except Exception:
+                    pass
+
+            return jdata
+
+    @classmethod
+    def compile(clazz, c_src_dir, out_dir, externs, patch_name=None, patch_meta: dict = None,
+                num_input_channels=0, num_output_channels=0, copyright=None, verbose=False):
 
         tick = time.time()
 
-        receiver_list = externs['parameters']['in']
+        receiver_list = c2rack.nonraw_receivers(externs['parameters']['in'])
 
         if patch_meta:
             patch_name = patch_meta.get("name", patch_name)
@@ -49,7 +109,7 @@ class c2rack:
                 shutil.rmtree(out_dir)
 
             # copy over static files
-            shutil.copytree(os.path.join(os.path.dirname(__file__), "static"), out_dir)
+            # shutil.copytree(os.path.join(os.path.dirname(__file__), "static"), out_dir)
 
             if rack_project:
                 shutil.copy(os.path.join(os.path.dirname(__file__), "static/README.md"), f'{out_dir}/../')
@@ -65,10 +125,16 @@ class c2rack:
             env.loader = jinja2.FileSystemLoader(
                 os.path.join(os.path.dirname(os.path.abspath(__file__)), "templates"))
 
+            # construct jdata from ir
+            ir_dir = os.path.join(c_src_dir, "../ir")
+            patch_ir = os.path.join(ir_dir, f"{patch_name}.heavy.ir.json")
+            jdata = c2rack.make_jdata(patch_ir)
+
             # generate DPF wrapper from template
-            rack_h_path = os.path.join(source_dir, f"HeavyRack_{patch_name}.hpp")
-            with open(rack_h_path, "w") as f:
+            plugin_hpp_path = os.path.join(source_dir, "plugin.hpp")
+            with open(plugin_hpp_path, "w") as f:
                 f.write(env.get_template("plugin.hpp").render(
+                    jdata=jdata,
                     name=patch_name,
                     meta=rack_meta,
                     class_name=f"HeavyRack_{patch_name}",
@@ -76,9 +142,22 @@ class c2rack:
                     num_output_channels=num_output_channels,
                     receivers=receiver_list,
                     copyright=copyright_c))
-            rack_cpp_path = os.path.join(source_dir, f"HeavyRack_{patch_name}.cpp")
-            with open(rack_cpp_path, "w") as f:
+            plugin_cpp_path = os.path.join(source_dir, "plugin.cpp")
+            with open(plugin_cpp_path, "w") as f:
                 f.write(env.get_template("plugin.cpp").render(
+                    jdata=jdata,
+                    name=patch_name,
+                    meta=rack_meta,
+                    class_name=f"HeavyRack_{patch_name}",
+                    num_input_channels=num_input_channels,
+                    num_output_channels=num_output_channels,
+                    receivers=receiver_list,
+                    pool_sizes_kb=externs["memoryPoolSizesKb"],
+                    copyright=copyright_c))
+            model_cpp_path = os.path.join(source_dir, f"HeavyRack_{patch_name}.cpp")
+            with open(model_cpp_path, "w") as f:
+                f.write(env.get_template("model.cpp").render(
+                    jdata=jdata,
                     name=patch_name,
                     meta=rack_meta,
                     class_name=f"HeavyRack_{patch_name}",
@@ -144,7 +223,7 @@ class c2rack:
                 "in_dir": c_src_dir,
                 "in_file": "",
                 "out_dir": out_dir,
-                "out_file": os.path.basename(rack_h_path),
+                "out_file": os.path.basename(plugin_hpp_path),
                 "compile_time": time.time() - tick
             }
 
