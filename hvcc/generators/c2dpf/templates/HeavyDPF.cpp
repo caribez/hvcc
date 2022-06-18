@@ -485,19 +485,18 @@ void {{class_name}}::run(const float** inputs, float** outputs, uint32_t frames)
       Heavy_{{name}}::Parameter::In::{{param|upper}},
       *inputs[{{num_output_channels + i}}]);
   {% endfor %}
-
-  const float** audioInputs;
-  float** audioOutputs;
+  const float* audioInputs[{{num_input_channels}}];
+  float* audioOutputs[{{num_output_channels}}];
   {% if num_input_channels > 0 %}
-  for(int i = 0; i < {{num_input_channels}}; i++)
-  {
-    const float* audioInputs[i] = {inputs[i]};
-  }
+    {% for i in range(0, num_input_channels) %}
+  audioInputs[{{i}}] = inputs[{{i}}];
+    {% endfor %}
   {% endif %}
-  for(int i = 0; i < {{num_output_channels}}; i++)
-  {
-    float* audioOutputs[i] = {outputs[i]};
-  }
+  {% if num_output_channels > 0 %}
+    {% for i in range(0, num_output_channels) %}
+  audioOutputs[{{i}}] = outputs[{{i}}];
+    {% endfor %}
+  {% endif%}
 
   _context->process((float**)audioInputs, audioOutputs, frames);
 }
