@@ -8,8 +8,8 @@
 {% else %}
 #define DISTRHO_PLUGIN_URI                  "http://wasted.audio/lv2/plugin/{{name}}"
 {% endif %}
-#define DISTRHO_PLUGIN_NUM_INPUTS           {{num_input_channels}}
-#define DISTRHO_PLUGIN_NUM_OUTPUTS          {{num_output_channels}}
+#define DISTRHO_PLUGIN_NUM_INPUTS           {{num_input_channels + raw_data_input|length}}
+#define DISTRHO_PLUGIN_NUM_OUTPUTS          {{num_output_channels + raw_data_output|length}}
 #define DISTRHO_PLUGIN_IS_SYNTH             {{1 if num_output_channels > 0 and meta.midi_input else 0}}
 #define DISTRHO_PLUGIN_HAS_UI               0
 #define DISTRHO_PLUGIN_IS_RT_SAFE           1

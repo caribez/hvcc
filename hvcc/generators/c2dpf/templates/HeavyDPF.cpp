@@ -94,6 +94,53 @@ static void hvPrintHookFunc(HeavyContextInterface *c, const char *printLabel, co
   delete _context;
 }
 
+void {{class_name}}::initAudioPort(bool input, uint32_t index, AudioPort& port)
+{
+  if (input)
+  {
+    switch (index)
+    {
+      {% for i in range(0, num_input_channels) %}
+    case {{i}}:
+      port.name = "input_{{i+1}}";
+      port.symbol = "input_{{i+1}}";
+      return;
+      {% endfor %}
+      {% for i in range(0, raw_data_input|length) %}
+        {% set param, name, typ, namehash, minvalue, maxvalue, defvalue = raw_data_input[i] %}
+    case {{num_input_channels + i}}:
+      port.hints = kAudioPortIsCV;
+      port.name = "{{name}}";
+      port.symbol = "{{param}}";
+      return;
+      {% endfor %}
+    }
+  }
+  else
+  {
+    switch(index)
+    {
+       {% for i in range(0, num_output_channels) %}
+    case {{i}}:
+      port.name = "output_{{i+1}}";
+      port.symbol = "output_{{i+1}}";
+      return;
+      {% endfor %}
+      {% for i in range(0, raw_data_output|length) %}
+        {% set param, name, typ, namehash, minvalue, maxvalue, defvalue = raw_data_output[i] %}
+    case {{num_output_channels + i}}:
+      port.hints = kAudioPortIsCV;
+      port.name = "{{name}}";
+      port.symbol = "{{param}}";
+      return;
+      {% endfor %}
+    }
+  }
+
+  // It shouldn't reach here, but just in case if index is greater than 0.
+  Plugin::initAudioPort(input, index, port);
+}
+
 void {{class_name}}::initParameter(uint32_t index, Parameter& parameter)
 {
   {% if receivers|length > 0 %}
@@ -432,7 +479,27 @@ void {{class_name}}::run(const float** inputs, float** outputs, uint32_t frames,
 void {{class_name}}::run(const float** inputs, float** outputs, uint32_t frames)
 {
 #endif
-  _context->process((float**)inputs, outputs, frames);
+  {% for i in range(0, raw_data_input|length) %}
+    {% set param, rawname, typ, namehash, minvalue, maxvalue, defvalue = raw_data_input[i] %}
+  _context->sendFloatToReceiver(
+      Heavy_{{name}}::Parameter::In::{{param|upper}},
+      *inputs[{{num_output_channels + i}}]);
+  {% endfor %}
+
+  const float** audioInputs;
+  float** audioOutputs;
+  {% if num_input_channels > 0 %}
+  for(int i = 0; i < {{num_input_channels}}; i++)
+  {
+    const float* audioInputs[i] = {inputs[i]};
+  }
+  {% endif %}
+  for(int i = 0; i < {{num_output_channels}}; i++)
+  {
+    float* audioOutputs[i] = {outputs[i]};
+  }
+
+  _context->process((float**)audioInputs, audioOutputs, frames);
 }
 
 // -------------------------------------------------------------------

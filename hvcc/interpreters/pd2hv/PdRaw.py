@@ -37,7 +37,7 @@ def parse_pd_raw_args(args):
     attrdict["max"] = 1.0
     attrdict["default"] = None
 
-    args = replace_owl(args)  # TODO(dromer): deprecate @owl on next stable release
+    args = replace_owl(args)  # TODO(dromer): deprecate @owl on next stable release (2.0)
 
     for raw_param in ['@raw', '@raw_min', '@raw_max', '@raw_default', '@raw_param']:
         if raw_param not in args:
