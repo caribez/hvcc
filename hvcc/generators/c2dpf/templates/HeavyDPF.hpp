@@ -27,6 +27,7 @@ public:
 
   void handleMidiInput(uint32_t frames, const MidiEvent* midiEvents, uint32_t midiEventCount);
   void handleMidiSend(uint32_t sendHash, const HvMessage *m);
+  void handleCVSend(uint32_t sendHash, const HvMessage *m);
 
 protected:
   // -------------------------------------------------------------------
@@ -125,6 +126,12 @@ private:
   float samplesProcessed;
   double nextClockTick;
   double sampleAtCycleStart;
+
+  // extra audio buffers
+  const float* audioInputs[{{num_input_channels}}] = {};
+  // float* audioOutputs[{{num_output_channels + raw_data_output|length}}] = {};
+  float* audioOutputs[{{num_output_channels}}] = {};
+  float* cvOutputs[{{raw_data_output|length}}] = {};
 
   // heavy context
   HeavyContextInterface *_context;

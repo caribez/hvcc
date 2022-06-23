@@ -50,6 +50,7 @@ static void hvSendHookFunc(HeavyContextInterface *c, const char *sendName, uint3
   {{class_name}}* plugin = ({{class_name}}*)c->getUserData();
   if (plugin != nullptr)
   {
+    plugin->handleCVSend(sendHash, m);
 #if DISTRHO_PLUGIN_WANT_MIDI_OUTPUT
     plugin->handleMidiSend(sendHash, m);
 #endif
@@ -211,6 +212,22 @@ void {{class_name}}::setParameterValue(uint32_t index, float value)
 // {
 
 // }
+
+void {{class_name}}::handleCVSend(uint32_t sendHash, const HvMessage *m)
+{
+  switch (sendHash)
+  {
+  {% for i in range(0, raw_data_output|length) %}
+    {% set param, name, typ, namehash, minvalue, maxvalue, defvalue = raw_data_output[i] %}
+      case {{namehash}}:
+        float thing = hv_msg_getFloat(m, 0);
+        printf("> {{name}} - %f \n", thing);
+        // this->audioOutputs[{{num_output_channels + i}}] = &thing;
+        this->cvOutputs[{{i}}] = &thing;
+        break;
+  {% endfor %}
+  }
+}
 
 #if DISTRHO_PLUGIN_WANT_MIDI_INPUT
 // -------------------------------------------------------------------
@@ -483,10 +500,8 @@ void {{class_name}}::run(const float** inputs, float** outputs, uint32_t frames)
     {% set param, rawname, typ, namehash, minvalue, maxvalue, defvalue = raw_data_input[i] %}
   _context->sendFloatToReceiver(
       Heavy_{{name}}::Parameter::In::{{param|upper}},
-      *inputs[{{num_output_channels + i}}]);
+      *inputs[{{num_input_channels + i}}]);
   {% endfor %}
-  const float* audioInputs[{{num_input_channels}}];
-  float* audioOutputs[{{num_output_channels}}];
   {% if num_input_channels > 0 %}
     {% for i in range(0, num_input_channels) %}
   audioInputs[{{i}}] = inputs[{{i}}];
@@ -495,6 +510,13 @@ void {{class_name}}::run(const float** inputs, float** outputs, uint32_t frames)
   {% if num_output_channels > 0 %}
     {% for i in range(0, num_output_channels) %}
   audioOutputs[{{i}}] = outputs[{{i}}];
+    {% endfor %}
+  {% endif%}
+
+  {% if raw_data_output|length > 0 %}
+    {% for i in range(0, raw_data_output|length) %}
+  // audioOutputs[{{num_output_channels + i}}] = outputs[{{num_output_channels + i}}];
+  outputs[{{num_output_channels + i}}] = cvOutputs[{{i}}];
     {% endfor %}
   {% endif%}
 
